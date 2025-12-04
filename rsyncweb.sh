@@ -3,7 +3,7 @@
 
 
 # ================= CONFIGURATION =================
-DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1446096734341300236/uvpUQYlFPd3naLMO7768BcMQFzlBY-s3chVPVYw3A6WTBiSfHsDVDBn048gWccJAyaZq"
+DISCORD_WEBHOOK_URL="token_a_remplacer"
 SOURCE=(
     "/var/www"
     "/home"
