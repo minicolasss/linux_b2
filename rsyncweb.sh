@@ -1,9 +1,15 @@
 #!/bin/bash
+# regle crontab
+# sudo crontab -e
+# 0 2,14 * * * PATH=/usr/bin:/bin:/usr/sbin:/sbin /home/<user>/rsyncweb.sh
+
+# =============== PATCH =====================
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 
 
 # ================= CONFIGURATION =================
-DISCORD_WEBHOOK_URL="token_a_remplacer"
+DISCORD_WEBHOOK_URL="Token_a_remplacer_par_votre_webhook"
 SOURCE=(
     "/var/www"
     "/home"
