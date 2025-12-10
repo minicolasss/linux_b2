@@ -42,7 +42,7 @@ Si le Web est compromis, le Backup reste inaccessible (car le Web ne peut pas in
 
 *Ce script se connecte au serveur Web, aspire le dossier `/backup/` distant et l'enregistre localement.*
 
-```bash
+```zsh
 #!/bin/bash
 
 # --- CONFIGURATION ---
@@ -51,7 +51,6 @@ REMOTE_IP="192.168.10.10"
 REMOTE_DIR="/backup/"          # On récupère tout (System + Mongo Chiffré)
 LOCAL_DIR="/backup/centralized_archives/"
 LOG_FILE="/var/log/pull_backup.log"
-EMAIL="ton_email@gmail.com"
 RETENTION_DAYS=30              # On garde 1 mois d'historique ici (Stockage long terme)
 
 # --- DÉBUT ---
@@ -78,10 +77,6 @@ else
     STATUS="FAIL"
     SUBJECT="[ERREUR] Backup PULL (VLAN 40)"
 fi
-
-# --- NOTIFICATION ---
-# On envoie les logs par mail
-tail -n 20 "$LOG_FILE" | mail -s "$SUBJECT" "$EMAIL"
 
 exit 0
 ```
@@ -124,28 +119,19 @@ sudo ssh-keygen -t rsa
 sudo ssh-copy-id lsblk2exa@192.168.10.10
 ```
 
-### 3\. Installation des paquets
-
-```bash
-sudo apt update
-sudo apt install -y rsync mailutils postfix libsasl2-modules
-```
-
 -----
 
 ## ⚙️ Automatisation (Crontab)
 
-Le serveur Web fait ses backups à **00h20** et **14h00**.
+Le serveur Web fait ses backups à **02h00**.
 Le serveur Backup doit passer **APRÈS** pour les récupérer (ex: 1h00 et 15h00).
 
 Éditer avec `sudo crontab -e` :
 
 ```bash
 # Récupération des archives (1h du matin)
-0 1 * * * /usr/local/bin/pull_backup.sh
+0 3 * * * /usr/local/bin/pull_backup.sh
 
-# Récupération des archives (15h00)
-0 15 * * * /usr/local/bin/pull_backup.sh
 ```
 
 -----
@@ -157,7 +143,6 @@ Ce serveur est isolé.
   * **Entrée :** Seul le SSH depuis le LAN Admin (via pfSense) est autorisé.
   * **Sortie :**
       * Vers **Web (DMZ)** : Port 22 (SSH) uniquement.
-      * Vers **Internet** : Ports 80/443 (Updates) et 587 (SMTP Gmail).
 
 -----
 
