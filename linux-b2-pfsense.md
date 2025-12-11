@@ -6,15 +6,17 @@ Il assure la segmentation (VLANs), le routage, et la sécurité entre le Web (DM
 
 ## 🗺️ Topologie Réseau & VLANs
 
-L'interface LAN physique (`vtnet1` ou `vmx1`) porte tous les VLANs (Trunk).
+L'interface LAN physique (`vtnet1`) porte tous les VLANs (Trunk).
+L'interface DMZ physique (`vtnet2`) .
 
-| Zone | Interface | VLAN ID | CIDR (IP Pare-feu) | Description |
+| Zone | Interface | VLAN ID | CIDR | Description |
 | :--- | :--- | :---: | :--- | :--- |
-| **WAN** | `wan` | - | DHCP / IP Publique | Connexion Internet |
-| **LAN** | `lan` | - | `192.168.1.1/24` | Réseau d'Administration (PC Admin) |
-| **DMZ** | `opt1` | **10** | `192.168.10.1/24` | Serveur Web Public (Nginx/Mongo) |
-| **BACKUP** | `opt2` | **40** | `192.168.40.1/24` | Serveur de Sauvegarde Isolé |
-| **VPN** | `ovpns1` | - | `10.0.8.0/24` | Accès distant (OpenVPN) |
+| **WAN** | `wan` | - | DHCP | Connexion Internet |
+| **ADMIN** | `lan` | **1** | `192.168.1.1/24` | **Zone de Confiance**. Accès complet. |
+| **DMZ** | `opt1` | **10** | `192.168.10.1/24` | Serveur Web Public (Nginx/Mongo). |
+| **EMPLOYEE**| `opt3` | **20** | `192.168.20.1/24` | **Zone Utilisateurs**. Internet uniquement. |
+| **BACKUP** | `opt2` | **40** | `192.168.40.1/24` | Serveur de Sauvegarde Isolé. |
+| **MONITOR** | `opt4` | **50** | `192.168.50.1/24` | Serveur Zabbix (Supervision). |
 
 ---
 
@@ -29,13 +31,33 @@ La logique est : **"Tout ce qui n'est pas explicitement autorisé est interdit"*
 | ✅ | UDP | * | * | WAN Address | 1194 | **Allow OpenVPN Access** |
 | ✅ | TCP | * | * | 192.168.10.10 | 80/443 | **NAT Web Server** (Géré par NAT) |
 
-### 2. Interface LAN (Admin)
-| Action | Proto | Source | Port | Destination | Port | Description |
-| :---: | :---: | :--- | :---: | :--- | :---: | :--- |
-| ✅ | * | LAN net | * | * | * | **Anti-Lockout Rule** (Toujours en haut) |
-| ✅ | * | LAN net | * | * | * | **Allow LAN to Any** (Accès total) |
+### 2. Interface ADMIN (LAN / VLAN 1)
+*C'est le poste de pilotage. Seul l'Admin Réseau est ici.*
+| Action | Proto | Source | Dest | Port | Description |
+| :---: | :---: | :--- | :--- | :---: | :--- |
+| ✅ | * | ADMIN net | * | * | **Allow All** (Accès à Zabbix, Web, Backup, Internet...) |
 
-### 3. Interface DMZ (VLAN 10)
+### 3. Interface EMPLOYEE (VLAN 20)
+*Les employés ne doivent voir que l'Internet. Le réseau interne leur est invisible.*
+| Action | Proto | Source | Dest | Port | Description |
+| :---: | :---: | :--- | :--- | :---: | :--- |
+| ❌ | * | EMPLOYEE net | ADMIN net | * | **Block vers Admin** |
+| ❌ | * | EMPLOYEE net | DMZ net | * | **Block vers Serveurs Web** (Sauf si site public) |
+| ❌ | * | EMPLOYEE net | BACKUP net | * | **Block vers Backup** |
+| ❌ | * | EMPLOYEE net | MONITOR net | * | **Block vers Zabbix** (Pas touche au monitoring) |
+| ❌ | * | EMPLOYEE net | Firewall | * | **Block Accès WebGUI pfSense** |
+| ✅ | TCP/UDP | EMPLOYEE net | * | * | **Allow Internet** (Tout le reste) |
+
+### 4. Interface MONITORING (VLAN 50 / Zabbix)
+*Zabbix doit pouvoir interroger les serveurs, mais personne (sauf Admin) ne doit pouvoir interroger Zabbix.*
+| Action | Proto | Source | Dest | Port | Description |
+| :---: | :---: | :--- | :--- | :---: | :--- |
+| ✅ | TCP | MONITOR net | DMZ net | 10050 | **Agent Zabbix Web** |
+| ✅ | TCP | MONITOR net | BACKUP net | 10050 | **Agent Zabbix Backup** |
+| ✅ | TCP | MONITOR net | * | 80/443 | **Mises à jour & Alertes Mail** |
+| ❌ | * | MONITOR net | ADMIN net | * | **Block vers Admin** (Sécurité si Zabbix est piraté) |
+
+### 5. Interface DMZ (VLAN 10)
 *Zone exposée : Sécurité maximale. Ne doit jamais initier de connexion vers le LAN ou le BACKUP.*
 
 | Action | Proto | Source | Port | Destination | Port | Description |
@@ -45,7 +67,7 @@ La logique est : **"Tout ce qui n'est pas explicitement autorisé est interdit"*
 | ✅ | UDP | DMZ net | * | DMZ Address | 53 | **Allow DNS** (Vers pfSense) |
 | ✅ | TCP | DMZ net | * | * | 80/443 | **Allow Updates** (Apt/Curl vers Internet) |
 
-### 4. Interface BACKUP (VLAN 40)
+### 6. Interface BACKUP (VLAN 40)
 *Zone sécurisée : Doit "tirer" (Pull) les données.*
 
 | Action | Proto | Source | Port | Destination | Port | Description |
@@ -54,7 +76,7 @@ La logique est : **"Tout ce qui n'est pas explicitement autorisé est interdit"*
 | ✅ | TCP | BACKUP net | * | 192.168.10.10 | 22 | **Allow SSH PULL** (Backup -> Web) |
 
 
-### 5. Interface OpenVPN
+### 7. Interface OpenVPN
 | Action | Proto | Source | Port | Destination | Port | Description |
 | :---: | :---: | :--- | :---: | :--- | :---: | :--- |
 | ✅ | * | * | * | * | * | **Allow VPN to Any** (Admin distant) |
