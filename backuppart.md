@@ -24,7 +24,6 @@ Si le Web est compromis, le Backup reste inaccessible (car le Web ne peut pas in
 /
 ├── etc/
 │   ├── netplan/              # Config Réseau (IP Statique VLAN 40)
-│   ├── postfix/              # Config SMTP (Relais Gmail)
 │   └── cron.d/               # Planification
 ├── root/
 │   └── .ssh/                 # 🔑 Clés SSH (Privée) pour se connecter au Web
